@@ -1,0 +1,278 @@
+From ae237c625878d7c6e7efd0e1ad4a28c99040321e Mon Sep 17 00:00:00 2001
+From: ticket-bot <bot@users.noreply.github.com>
+Date: Thu, 18 Jun 2026 21:04:17 +0000
+Subject: [PATCH] Switch alerts to Match 94 (R16, Seattle) and raise limit to
+ $3000
+
+---
+ README.md                          |   9 +++++----
+ __pycache__/scrape.cpython-312.pyc | Bin 0 -> 16152 bytes
+ scrape.py                          |  18 ++++++++++--------
+ 3 files changed, 15 insertions(+), 12 deletions(-)
+ create mode 100644 __pycache__/scrape.cpython-312.pyc
+
+diff --git a/README.md b/README.md
+index 83ba59c..d0600f5 100644
+--- a/README.md
++++ b/README.md
+@@ -1,9 +1,10 @@
+ # World Cup Ticket Alert (GitHub Actions + Playwright)
+ 
+-Watches multiple ticketing sites for **USA vs Australia, June 19 2026, Lumen
+-Field** and emails you when 100-200 level seats with 4+ together drop under
+-$2,500. No API key — it drives a real browser, so it reads the same data a
+-person sees.
++Watches multiple ticketing sites for **Match 94 (Round of 16), July 6 2026,
++Lumen Field, Seattle** and emails you when 100-200 level seats with 4+ together
++drop under $3,000. Teams are TBD — Match 94 is the winner of Match 81 vs the
++winner of Match 82. No API key — it drives a real browser, so it reads the same
++data a person sees.
+ 
+ Ships set up for **SeatGeek + TickPick**. To add **StubHub, Vivid Seats, or
+ Gametime**, uncomment them in the `SOURCES` list at the top of `scrape.py`.
+diff --git a/__pycache__/scrape.cpython-312.pyc b/__pycache__/scrape.cpython-312.pyc
+new file mode 100644
+index 0000000000000000000000000000000000000000..b1521c0e425bf738ec1f9efc2330aac41dde90ba
+GIT binary patch
+literal 16152
+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
+P^#Ab~h#^#ojKcp1!l&O;
+
+literal 0
+HcmV?d00001
+
+diff --git a/scrape.py b/scrape.py
+index 1d7a58d..2a6df7e 100644
+--- a/scrape.py
++++ b/scrape.py
+@@ -1,5 +1,7 @@
+ """
+-World Cup ticket alert — USA vs Australia, June 19 2026, Lumen Field.
++World Cup ticket alert — Match 94 (Round of 16), July 6 2026, Lumen Field, Seattle.
++
++Teams are TBD: Match 94 is the winner of Match 81 vs the winner of Match 82.
+ 
+ Uses a real Chromium browser (Playwright) to load each ticketing site's event
+ page and capture the listing data the page loads in the background. No API key.
+@@ -28,15 +30,15 @@ from playwright.sync_api import sync_playwright
+ # so expect them to get blocked more often and need occasional tuning.
+ SOURCES = [
+     {"name": "SeatGeek", "url":
+-        "https://seatgeek.com/fifa-world-cup-tickets/international-soccer/2026-06-19-12-pm/17248696"},
++        "https://seatgeek.com/fifa-world-cup-tickets/international-soccer/2026-07-06-5-pm/17248700"},
+     {"name": "TickPick", "url":
+-        "https://www.tickpick.com/buy-fifa-world-cup-26-group-d-united-states-vs-australia-match-32-tickets-lumen-field-6-19-26-12pm/6259615/"},
++        "https://www.tickpick.com/buy-fifa-world-cup-26-round-of-16-w81-vs-w82-match-94-tickets-lumen-field-7-6-26-5pm/6259622/"},
+     {"name": "StubHub", "url":
+-        "https://www.stubhub.com/world-cup-seattle-tickets-6-19-2026/event/153020544"},
++        "https://www.stubhub.com/world-cup-seattle-tickets-7-6-2026/event/153020574/"},
+     {"name": "Vivid Seats", "url":
+-        "https://www.vividseats.com/world-cup-soccer-tickets-lumen-field-6-19-2026--sports-soccer/production/5080483"},
++        "https://www.vividseats.com/world-cup-soccer-tickets-lumen-field-7-6-2026--sports-soccer/production/5080857"},
+     {"name": "Gametime", "url":
+-        "https://gametime.co/us_australia/fifa-world-cup-usa-vs-australia-match-32-group-d-tickets/6-19-2026-seattle-wa-lumen-field/events/66aa92642e8443f895e2dbc8"},
++        "https://gametime.co/soccer/fifa-world-cup-match-94-tickets/7-6-2026-seattle-wa-lumen-field/events/66a7e76989fae77676133f65"},
+ ]
+ # FIFA official resale is intentionally NOT here: it needs your FIFA login and
+ # is heavily protected. Use FIFA's own site alerts for that source.
+@@ -46,7 +48,7 @@ def _env(name, default):
+     v = os.environ.get(name)
+     return v if v not in (None, "") else default
+ 
+-PRICE_LIMIT = float(_env("PRICE_LIMIT", "2500"))
++PRICE_LIMIT = float(_env("PRICE_LIMIT", "3000"))
+ MIN_QTY     = int(_env("MIN_QTY", "4"))
+ SECTION_MIN = int(_env("SECTION_MIN", "100"))
+ SECTION_MAX = int(_env("SECTION_MAX", "299"))
+@@ -281,7 +283,7 @@ def main():
+         blocks.append(f"{name}  ({items[0]['url']})\n{rows}")
+ 
+     body = (f"100-200 level seats with {MIN_QTY}+ together under "
+-            f"${PRICE_LIMIT:.0f} for USA vs Australia:\n\n"
++            f"${PRICE_LIMIT:.0f} for Match 94 (Round of 16), Lumen Field, Seattle:\n\n"
+             + "\n\n".join(blocks)
+             + f"\n\nVenue floor by site: {floor_line}\n\nBuy fast.\n")
+ 
+-- 
+2.43.0
+

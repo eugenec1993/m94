@@ -1,9 +1,10 @@
 # World Cup Ticket Alert (GitHub Actions + Playwright)
 
-Watches multiple ticketing sites for **USA vs Australia, June 19 2026, Lumen
-Field** and emails you when 100-200 level seats with 4+ together drop under
-$2,500. No API key — it drives a real browser, so it reads the same data a
-person sees.
+Watches multiple ticketing sites for **Match 94 (Round of 16), July 6 2026,
+Lumen Field, Seattle** and emails you when 100-200 level seats with 4+ together
+drop under $3,000. Teams are TBD — Match 94 is the winner of Match 81 vs the
+winner of Match 82. No API key — it drives a real browser, so it reads the same
+data a person sees.
 
 Ships set up for **SeatGeek + TickPick**. To add **StubHub, Vivid Seats, or
 Gametime**, uncomment them in the `SOURCES` list at the top of `scrape.py`.

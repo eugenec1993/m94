@@ -1,5 +1,7 @@
 """
-World Cup ticket alert — USA vs Australia, June 19 2026, Lumen Field.
+World Cup ticket alert — Match 94 (Round of 16), July 6 2026, Lumen Field, Seattle.
+
+Teams are TBD: Match 94 is the winner of Match 81 vs the winner of Match 82.
 
 Uses a real Chromium browser (Playwright) to load each ticketing site's event
 page and capture the listing data the page loads in the background. No API key.
@@ -28,15 +30,15 @@ from playwright.sync_api import sync_playwright
 # so expect them to get blocked more often and need occasional tuning.
 SOURCES = [
     {"name": "SeatGeek", "url":
-        "https://seatgeek.com/fifa-world-cup-tickets/international-soccer/2026-06-19-12-pm/17248696"},
+        "https://seatgeek.com/fifa-world-cup-tickets/international-soccer/2026-07-06-5-pm/17248700"},
     {"name": "TickPick", "url":
-        "https://www.tickpick.com/buy-fifa-world-cup-26-group-d-united-states-vs-australia-match-32-tickets-lumen-field-6-19-26-12pm/6259615/"},
+        "https://www.tickpick.com/buy-fifa-world-cup-26-round-of-16-w81-vs-w82-match-94-tickets-lumen-field-7-6-26-5pm/6259622/"},
     {"name": "StubHub", "url":
-        "https://www.stubhub.com/world-cup-seattle-tickets-6-19-2026/event/153020544"},
+        "https://www.stubhub.com/world-cup-seattle-tickets-7-6-2026/event/153020574/"},
     {"name": "Vivid Seats", "url":
-        "https://www.vividseats.com/world-cup-soccer-tickets-lumen-field-6-19-2026--sports-soccer/production/5080483"},
+        "https://www.vividseats.com/world-cup-soccer-tickets-lumen-field-7-6-2026--sports-soccer/production/5080857"},
     {"name": "Gametime", "url":
-        "https://gametime.co/us_australia/fifa-world-cup-usa-vs-australia-match-32-group-d-tickets/6-19-2026-seattle-wa-lumen-field/events/66aa92642e8443f895e2dbc8"},
+        "https://gametime.co/soccer/fifa-world-cup-match-94-tickets/7-6-2026-seattle-wa-lumen-field/events/66a7e76989fae77676133f65"},
 ]
 # FIFA official resale is intentionally NOT here: it needs your FIFA login and
 # is heavily protected. Use FIFA's own site alerts for that source.
@@ -46,7 +48,7 @@ def _env(name, default):
     v = os.environ.get(name)
     return v if v not in (None, "") else default
 
-PRICE_LIMIT = float(_env("PRICE_LIMIT", "2500"))
+PRICE_LIMIT = float(_env("PRICE_LIMIT", "3000"))
 MIN_QTY     = int(_env("MIN_QTY", "4"))
 SECTION_MIN = int(_env("SECTION_MIN", "100"))
 SECTION_MAX = int(_env("SECTION_MAX", "299"))
@@ -281,7 +283,7 @@ def main():
         blocks.append(f"{name}  ({items[0]['url']})\n{rows}")
 
     body = (f"100-200 level seats with {MIN_QTY}+ together under "
-            f"${PRICE_LIMIT:.0f} for USA vs Australia:\n\n"
+            f"${PRICE_LIMIT:.0f} for Match 94 (Round of 16), Lumen Field, Seattle:\n\n"
             + "\n\n".join(blocks)
             + f"\n\nVenue floor by site: {floor_line}\n\nBuy fast.\n")
 
