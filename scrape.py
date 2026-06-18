@@ -23,6 +23,7 @@ import smtplib
 import ssl
 from email.message import EmailMessage
 from playwright.sync_api import sync_playwright
+from playwright_stealth import Stealth
 
 # ---------------- platforms to check ----------------
 # Shipped on: SeatGeek + TickPick (most readable).
@@ -81,7 +82,7 @@ def scrape_source(url, name):
             pass
 
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-    with sync_playwright() as p:
+    with Stealth().use_sync(sync_playwright()) as p:
         browser = p.chromium.launch(
             headless=True,
             args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
