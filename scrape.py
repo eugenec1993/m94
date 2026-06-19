@@ -41,9 +41,26 @@ FEED_HINTS = (
     "listing", "inventory", "offer", "quote", "ticket", "seat", "event",
     "graphql", "search", "production", "map", "availability", "manifest",
 )
-DATA_MARKERS = (
-    "section", "section_id", "sectionname", "row", "price", "displayprice",
-    "quantity", "qty", "listing", "inventory", "offer",
+
+SECTION_KEYS = (
+    "section", "section_id", "section_name", "sectionname", "section_label",
+    "sectionlabel", "zone", "zone_name", "zonename", "sid", "lid", "sec",
+    "sg_section", "area", "area_name",
+)
+PRICE_KEYS = (
+    "price", "display_price", "displayprice", "ticket_price", "ticketprice",
+    "price_with_fees", "pricewithfees", "all_in_price", "allinprice",
+    "amount", "current_price", "currentprice", "face_value", "facevalue",
+    "cost", "dp", "pf", "p",
+)
+QTY_KEYS = (
+    "quantity", "qty", "q", "available_quantity", "availablequantity",
+    "max_quantity", "maxquantity", "ticket_count", "ticketcount",
+    "available_tickets", "availabletickets", "count",
+)
+SPLIT_KEYS = (
+    "splits", "split_options", "splitoptions", "available_quantities",
+    "availablequantities", "quantities", "valid_quantities", "validquantities",
 )
 
 
@@ -52,22 +69,45 @@ def payload_looks_useful(data):
         text = json.dumps(data).lower()
     except Exception:
         return False
-    hits = sum(marker in text for marker in DATA_MARKERS)
-    return hits >= 2 and "price" in text
+    return (
+        any(key in text for key in ("listing", "inventory", "ticket", "offer"))
+        and any(key in text for key in ("price", "amount", "cost"))
+    )
+
+
+def safe_preview(data, limit=1200):
+    try:
+        return json.dumps(data, ensure_ascii=False)[:limit]
+    except Exception:
+        return str(data)[:limit]
+
+
+def click_first(page, selectors):
+    for selector in selectors:
+        try:
+            locator = page.locator(selector).first
+            if locator.count() and locator.is_visible(timeout=1000):
+                locator.click(timeout=3000)
+                page.wait_for_timeout(1500)
+                return True
+        except Exception:
+            pass
+    return False
 
 
 def scrape_source(url, name):
     captured = []
     json_urls = []
     captured_signatures = set()
+    blocked = False
 
-    def add_capture(source_url, data):
-        if not payload_looks_useful(data):
+    def add_capture(source_url, data, force=False):
+        if not force and not payload_looks_useful(data):
             return
         try:
-            signature = json.dumps(data, sort_keys=True)[:2000]
+            signature = json.dumps(data, sort_keys=True)[:4000]
         except Exception:
-            signature = str(data)[:2000]
+            signature = str(data)[:4000]
         if signature in captured_signatures:
             return
         captured_signatures.add(signature)
@@ -80,8 +120,14 @@ def scrape_source(url, name):
                 return
             json_urls.append(resp.url)
             data = resp.json()
-            if any(hint in resp.url.lower() for hint in FEED_HINTS) or payload_looks_useful(data):
-                add_capture(resp.url, data)
+            lower_url = resp.url.lower()
+            force = (
+                "api.tickpick.com/1.0/listings/internal/event-v2/" in lower_url
+                or "stubhub" in lower_url and any(x in lower_url for x in ("listing", "inventory", "ticket"))
+                or "gametime" in lower_url and any(x in lower_url for x in ("listing", "inventory", "ticket", "/v1/events/"))
+            )
+            if force or any(hint in lower_url for hint in FEED_HINTS) or payload_looks_useful(data):
+                add_capture(resp.url, data, force=force)
         except Exception:
             pass
 
@@ -106,14 +152,47 @@ def scrape_source(url, name):
 
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=60000)
-            page.wait_for_timeout(8000)
-            for _ in range(5):
-                page.mouse.wheel(0, 3500)
+            page.wait_for_timeout(7000)
+
+            # Dismiss common cookie/consent dialogs.
+            click_first(page, [
+                "button:has-text('Accept All')",
+                "button:has-text('Accept')",
+                "button:has-text('I Agree')",
+                "button:has-text('Got it')",
+                "button[aria-label='Close']",
+            ])
+
+            # Trigger list/inventory loading on sites that defer it until interaction.
+            if name == "StubHub":
+                click_first(page, [
+                    "button:has-text('Show tickets')",
+                    "button:has-text('View tickets')",
+                    "button:has-text('List view')",
+                    "button:has-text('Tickets')",
+                    "[data-testid*='list']",
+                ])
+            elif name == "Gametime":
+                click_first(page, [
+                    "button:has-text('Buy Tickets')",
+                    "button:has-text('See Tickets')",
+                    "a:has-text('Buy Tickets')",
+                    "a:has-text('See Tickets')",
+                ])
+
+            for _ in range(6):
+                page.mouse.wheel(0, 3000)
                 page.wait_for_timeout(1200)
 
-            # Capture JSON embedded in Next.js / hydration / structured-data scripts.
-            scripts = page.locator("script[type='application/json'], script[type='application/ld+json']")
-            for index in range(min(scripts.count(), 150)):
+            try:
+                page.wait_for_load_state("networkidle", timeout=10000)
+            except Exception:
+                pass
+
+            scripts = page.locator(
+                "script[type='application/json'], script[type='application/ld+json'], script#__NEXT_DATA__"
+            )
+            for index in range(min(scripts.count(), 200)):
                 try:
                     text = scripts.nth(index).text_content()
                     if text:
@@ -122,13 +201,14 @@ def scrape_source(url, name):
                     pass
 
             title = page.title()
-            body_text = page.locator("body").inner_text(timeout=5000)[:3000]
+            body_text = page.locator("body").inner_text(timeout=5000)[:4000]
             challenge_text = f"{title} {body_text}".lower()
             if any(marker in challenge_text for marker in (
                 "captcha", "verify you are human", "access denied", "datadome",
                 "unusual traffic", "blocked", "just a moment",
             )):
-                print(f"[{name}] anti-bot challenge detected; title={title!r}")
+                blocked = True
+                print(f"[{name}] blocked by anti-bot challenge; title={title!r}")
         except Exception as exc:
             print(f"[{name}] page load issue: {exc}")
 
@@ -138,7 +218,114 @@ def scrape_source(url, name):
             pass
         browser.close()
 
-    return captured, json_urls
+    return captured, json_urls, blocked
+
+
+def to_number(value):
+    if isinstance(value, dict):
+        for key in (
+            "amount", "value", "price", "display", "display_price",
+            "formatted", "total", "min", "minimum",
+        ):
+            if key in value:
+                number = to_number(value[key])
+                if number is not None:
+                    return number
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        cleaned = re.sub(r"[^\d.]", "", str(value))
+        return float(cleaned) if cleaned else None
+    except Exception:
+        return None
+
+
+def parse_section(value):
+    if isinstance(value, dict):
+        for key in ("name", "label", "value", "section", "display_name", "displayname"):
+            if key in value:
+                section = parse_section(value[key])
+                if section is not None:
+                    return section
+        return None
+    match = re.search(r"(?<!\d)(1\d\d|2\d\d)(?!\d)", str(value))
+    return int(match.group(1)) if match else None
+
+
+def parse_qty(value):
+    if isinstance(value, dict):
+        for key in ("max", "maximum", "count", "quantity", "qty", "value"):
+            if key in value:
+                qty = parse_qty(value[key])
+                if qty is not None:
+                    return qty
+        return None
+    if isinstance(value, list):
+        values = [parse_qty(item) for item in value]
+        values = [item for item in values if item is not None]
+        return max(values) if values else None
+    try:
+        match = re.search(r"\d+", str(value))
+        return int(match.group()) if match else None
+    except Exception:
+        return None
+
+
+def recursive_values(node, wanted_keys):
+    values = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            normalized = str(key).lower().replace("-", "_")
+            if normalized in wanted_keys:
+                values.append(value)
+            values.extend(recursive_values(value, wanted_keys))
+    elif isinstance(node, list):
+        for item in node:
+            values.extend(recursive_values(item, wanted_keys))
+    return values
+
+
+def normalize(listing):
+    section = None
+    price = None
+    qty = None
+
+    for value in recursive_values(listing, set(SECTION_KEYS)):
+        section = parse_section(value)
+        if section is not None:
+            break
+
+    for value in recursive_values(listing, set(PRICE_KEYS)):
+        price = to_number(value)
+        if price is not None and price > 0:
+            break
+
+    for value in recursive_values(listing, set(QTY_KEYS)):
+        qty = parse_qty(value)
+        if qty is not None:
+            break
+
+    if qty is None:
+        for value in recursive_values(listing, set(SPLIT_KEYS)):
+            qty = parse_qty(value)
+            if qty is not None:
+                break
+
+    return {"section": section, "price": price, "qty": qty}
+
+
+def looks_like_listing(node):
+    if not isinstance(node, dict):
+        return False
+    keys = {str(key).lower().replace("-", "_") for key in node}
+    return (
+        bool(keys.intersection(SECTION_KEYS))
+        and bool(keys.intersection(PRICE_KEYS))
+    ) or (
+        bool(keys.intersection(PRICE_KEYS))
+        and bool(keys.intersection(QTY_KEYS + SPLIT_KEYS))
+    )
 
 
 def extract_listings(blob):
@@ -146,16 +333,7 @@ def extract_listings(blob):
 
     def walk(node):
         if isinstance(node, dict):
-            keys = {str(k).lower() for k in node}
-            has_section = any(k in keys for k in (
-                "section", "section_id", "section_name", "sectionname",
-                "sid", "lid", "sg_section", "sec",
-            ))
-            has_price = any(k in keys for k in (
-                "price", "display_price", "displayprice", "ticket_price",
-                "amount", "p", "dp", "pf",
-            ))
-            if has_section and has_price:
+            if looks_like_listing(node):
                 found.append(node)
             for value in node.values():
                 walk(value)
@@ -167,71 +345,20 @@ def extract_listings(blob):
     return found
 
 
-def to_number(value):
-    if isinstance(value, dict):
-        for key in ("amount", "value", "price", "display"):
-            if key in value:
-                return to_number(value[key])
-        return None
-    try:
-        cleaned = re.sub(r"[^\d.]", "", str(value))
-        return float(cleaned) if cleaned else None
-    except Exception:
-        return None
-
-
-def normalize(listing):
-    low = {str(k).lower(): v for k, v in listing.items()}
-
-    section = None
-    for key in ("sid", "section_id", "section", "sg_section", "sec", "section_name", "sectionname", "lid"):
-        if key in low and low[key] not in (None, ""):
-            match = re.search(r"\d+", str(low[key]))
-            if match:
-                section = int(match.group())
-                break
-
-    price = None
-    for key in ("price", "display_price", "displayprice", "ticket_price", "amount", "dp", "pf", "p"):
-        if key in low and low[key] not in (None, ""):
-            price = to_number(low[key])
-            if price:
-                break
-
-    qty = None
-    for key in ("quantity", "qty", "q", "available_quantity", "availablequantity"):
-        if key in low:
-            try:
-                qty = int(low[key])
-            except Exception:
-                pass
-            if qty is not None:
-                break
-
-    if qty is None:
-        for key in ("splits", "split_options", "available_quantities", "availablequantities"):
-            values = low.get(key)
-            if isinstance(values, list) and values:
-                try:
-                    qty = max(int(x) for x in values)
-                except Exception:
-                    pass
-                break
-
-    return {"section": section, "price": price, "qty": qty}
-
-
-def find_matches(captured):
+def find_matches(captured, source_name):
     seen = set()
     matches = []
     all_prices = []
+    candidates = 0
 
     for entry in captured:
-        for raw in extract_listings(entry["data"]):
+        listings = extract_listings(entry["data"])
+        candidates += len(listings)
+        for raw in listings:
             normalized = normalize(raw)
             if normalized["price"]:
                 all_prices.append(normalized["price"])
-            if not all(normalized.get(k) for k in ("section", "price", "qty")):
+            if not all(normalized.get(key) for key in ("section", "price", "qty")):
                 continue
             if not (SECTION_MIN <= normalized["section"] <= SECTION_MAX):
                 continue
@@ -242,8 +369,13 @@ def find_matches(captured):
                 seen.add(key)
                 matches.append(normalized)
 
+    if DEBUG and captured and candidates == 0:
+        print(f"[{source_name}] no listing-shaped objects found; sample={safe_preview(captured[0]['data'])}")
+    elif DEBUG and captured and not all_prices:
+        print(f"[{source_name}] found {candidates} candidate object(s) but no prices; sample={safe_preview(captured[0]['data'])}")
+
     matches.sort(key=lambda item: item["price"])
-    return matches, min(all_prices) if all_prices else None
+    return matches, min(all_prices) if all_prices else None, candidates
 
 
 def load_state():
@@ -291,22 +423,23 @@ def main():
 
     for source in SOURCES:
         try:
-            captured, json_urls = scrape_source(source["url"], source["name"])
-            matches, floor = find_matches(captured)
+            captured, json_urls, blocked = scrape_source(source["url"], source["name"])
+            matches, floor, candidates = find_matches(captured, source["name"])
             floors[source["name"]] = floor
             for match in matches:
                 match["source"] = source["name"]
                 match["url"] = source["url"]
             all_matches.extend(matches)
 
+            status = "blocked" if blocked else "ok"
             print(
-                f"[{source['name']}] saw {len(json_urls)} JSON response(s), "
-                f"captured {len(captured)} useful feed(s), "
+                f"[{source['name']}] status {status}, saw {len(json_urls)} JSON response(s), "
+                f"captured {len(captured)} useful feed(s), candidates {candidates}, "
                 f"floor {('$%.0f' % floor) if floor else 'no data'}, "
                 f"qualifying {len(matches)}"
             )
             if DEBUG:
-                for endpoint in json_urls[:20]:
+                for endpoint in json_urls[:25]:
                     print(f"[{source['name']}] endpoint: {endpoint}")
         except Exception as exc:
             print(f"[{source['name']}] error: {exc}")
